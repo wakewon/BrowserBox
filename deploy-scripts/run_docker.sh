@@ -41,12 +41,12 @@ echo "By using this container, you agree to the terms and license at the followi
 echo "License: https://raw.githubusercontent.com/dosyago/BrowserBoxPro/0b3ae2325eb95a2da441adc09411e2623fef6048/LICENSE.md"
 echo "Terms: https://dosyago.com/terms.txt"
 echo "Privacy: https://dosyago.com/privacy.txt"
-read -p "Do you agree to these terms? Enter 'yes' or 'no': " agreement
+# read -p "Do you agree to these terms? Enter 'yes' or 'no': " agreement
 
-if [ "$agreement" != "yes" ]; then
-    echo "You must agree to the terms and conditions to continue. Exiting..."
-    exit 1
-fi
+# if [ "$agreement" != "yes" ]; then
+#     echo "You must agree to the terms and conditions to continue. Exiting..."
+#     exit 1
+# fi
 
 echo "Your use is an agreement to the terms, privacy policy and license."
 
