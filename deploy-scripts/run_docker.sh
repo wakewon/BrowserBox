@@ -203,76 +203,80 @@ ssl_dir="$4"
 output=""
 darwin_needs_close=""
 
-function get_hostname() {
-if [[ -f "$ssl_dir/privkey.pem" && -f "$ssl_dir/fullchain.pem" ]]; then
-  hostname=$(openssl x509 -in "${ssl_dir}/fullchain.pem" -noout -text | grep -A1 "Subject Alternative Name" | tail -n1 | sed 's/DNS://g; s/, /\n/g' | head -n1 | awk '{$1=$1};1')
-  echo "Hostname: $hostname" >&2
-  output="$hostname"
-else
-  ip_address=$(get_external_ip)
-  echo "IP Address: $ip_address" >&2
-  output=""
-fi
-}
+# function get_hostname() {
+# if [[ -f "$ssl_dir/privkey.pem" && -f "$ssl_dir/fullchain.pem" ]]; then
+#   hostname=$(openssl x509 -in "${ssl_dir}/fullchain.pem" -noout -text | grep -A1 "Subject Alternative Name" | tail -n1 | sed 's/DNS://g; s/, /\n/g' | head -n1 | awk '{$1=$1};1')
+#   echo "Hostname: $hostname" >&2
+#   output="$hostname"
+# else
+#   ip_address=$(get_external_ip)
+#   echo "IP Address: $ip_address" >&2
+#   output=""
+# fi
+# }
 
-function get_certs() {
-  if [[ -f "${ssl_dir}/privkey.pem" && -f "${ssl_dir}/fullchain.pem" && "$HOSTNAME" == "$output" ]]; then
-    echo "Certs already present, will not overwrite. To force new certs for $HOSTNAME please remove or rename $ssl_dir"
-  else
-    if [[ "$HOSTNAME" != "localhost" ]]; then
-      if [[ "$(uname)" == "Darwin" ]]; then
-        # Use osascript to display a confirmation dialog and capture the output
-        echo "We are waiting for your response. Please check your Desktop now for the Dialog Box..."
-        userResponse=$(osascript -e 'display dialog "LetsEncrypt will ask your permission to open a temporary server for a few seconds to verify the domain for your HTTPS certificate. Allow LetsEncrypt to ask you?" buttons {"No", "Yes"} default button "Yes"')
-        echo "Dialog response: $userResponse"
+# function get_certs() {
+#   if [[ -f "${ssl_dir}/privkey.pem" && -f "${ssl_dir}/fullchain.pem" && "$HOSTNAME" == "$output" ]]; then
+#     echo "Certs already present, will not overwrite. To force new certs for $HOSTNAME please remove or rename $ssl_dir"
+#   else
+#     if [[ "$HOSTNAME" != "localhost" ]]; then
+#       if [[ "$(uname)" == "Darwin" ]]; then
+#         # Use osascript to display a confirmation dialog and capture the output
+#         echo "We are waiting for your response. Please check your Desktop now for the Dialog Box..."
+#         userResponse=$(osascript -e 'display dialog "LetsEncrypt will ask your permission to open a temporary server for a few seconds to verify the domain for your HTTPS certificate. Allow LetsEncrypt to ask you?" buttons {"No", "Yes"} default button "Yes"')
+#         echo "Dialog response: $userResponse"
 
-        # Check the user's response to the dialog
-        if [[ $userResponse == *"Yes"* ]]; then
-          echo "User agreed. Proceeding with verification..."
-          # Insert the code to open the temporary server for Let's Encrypt verification here
-          read -p "This will disable Apple iCloud Private Relay temporarily to attempt to open port 80 for LetsEncrypt HTTPS certificate issuance verification of hostname (which may fail anyway if your ISP blocks port 80). Continue? (y/n) " answer
-          if [[ "$answer" == "y" ]]; then
-            # Assuming open_firewall_port_range is a function you have defined to open port ranges with pfctl
-            open_firewall_port_range 80 80
-            darwin_needs_close="true"
-          else
-            echo "Not trying to open port 80. LetsEncrypt certificate issuance verification may fail." >&2
-          fi
-        else
-          echo "User declined. Verification canceled."
-          # Handle the case where the user declines
-          return 1
-        fi
-      else
-        open_firewall_port_range 80 80
-      fi
-      print_instructions
-      if [[ -f ./wait_for_hostname.sh ]]; then
-        ./wait_for_hostname.sh $HOSTNAME
-      elif [[ -f ./deploy-scripts/wait_for_hostname.sh ]]; then
-        ./deploy-scripts/wait_for_hostname.sh $HOSTNAME
-      elif command_exists wait_for_hostname.sh; then
-        wait_for_hostname.sh $HOSTNAME
-      else
-        bash <(curl -s https://raw.githubusercontent.com/BrowserBox/BrowserBox/boss/deploy-scripts/wait_for_hostname.sh) $HOSTNAME
-      fi
-    fi
+#         # Check the user's response to the dialog
+#         if [[ $userResponse == *"Yes"* ]]; then
+#           echo "User agreed. Proceeding with verification..."
+#           # Insert the code to open the temporary server for Let's Encrypt verification here
+#           read -p "This will disable Apple iCloud Private Relay temporarily to attempt to open port 80 for LetsEncrypt HTTPS certificate issuance verification of hostname (which may fail anyway if your ISP blocks port 80). Continue? (y/n) " answer
+#           if [[ "$answer" == "y" ]]; then
+#             # Assuming open_firewall_port_range is a function you have defined to open port ranges with pfctl
+#             open_firewall_port_range 80 80
+#             darwin_needs_close="true"
+#           else
+#             echo "Not trying to open port 80. LetsEncrypt certificate issuance verification may fail." >&2
+#           fi
+#         else
+#           echo "User declined. Verification canceled."
+#           # Handle the case where the user declines
+#           return 1
+#         fi
+#       else
+#         open_firewall_port_range 80 80
+#       fi
+#       print_instructions
+#       if [[ -f ./wait_for_hostname.sh ]]; then
+#         ./wait_for_hostname.sh $HOSTNAME
+#       elif [[ -f ./deploy-scripts/wait_for_hostname.sh ]]; then
+#         ./deploy-scripts/wait_for_hostname.sh $HOSTNAME
+#       elif command_exists wait_for_hostname.sh; then
+#         wait_for_hostname.sh $HOSTNAME
+#       else
+#         bash <(curl -s https://raw.githubusercontent.com/BrowserBox/BrowserBox/boss/deploy-scripts/wait_for_hostname.sh) $HOSTNAME
+#       fi
+#     fi
 
-    export BB_USER_EMAIL="$EMAIL"
-    if [[ -f ./tls ]]; then
-      ./tls $HOSTNAME
-    elif [[ -f ./deploy-scripts/tls ]]; then
-      ./deploy-scripts/tls $HOSTNAME
-    elif command_exists tls; then
-      tls $HOSTNAME
-    else
-      bash <(curl -s https://raw.githubusercontent.com/BrowserBox/BrowserBox/boss/deploy-scripts/tls) $HOSTNAME
-    fi
-  fi
-}
+#     export BB_USER_EMAIL="$EMAIL"
+#     if [[ -f ./tls ]]; then
+#       ./tls $HOSTNAME
+#     elif [[ -f ./deploy-scripts/tls ]]; then
+#       ./deploy-scripts/tls $HOSTNAME
+#     elif command_exists tls; then
+#       tls $HOSTNAME
+#     else
+#       bash <(curl -s https://raw.githubusercontent.com/BrowserBox/BrowserBox/boss/deploy-scripts/tls) $HOSTNAME
+#     fi
+#   fi
+# }
 
-get_hostname
-get_certs
+hostname=$HOSTNAME
+echo "Hostname: $hostname" >&2
+output="$hostname"
+
+# get_hostname
+# get_certs
 chmod 600 "$certDir"/*.pem
 
 if [[ "$(uname)" == "Darwin" ]] && [[ -n "$darwin_needs_close" ]]; then
@@ -280,8 +284,8 @@ if [[ "$(uname)" == "Darwin" ]] && [[ -n "$darwin_needs_close" ]]; then
   $SUDO pfctl -F all -f /etc/pf.conf
 fi
 
-get_hostname
-HOSTNAME="$output"
+# get_hostname
+# HOSTNAME="$output"
 
 if [[ -z "$HOSTNAME" ]]; then
 echo "ERROR: Could not get a certificate. Bailing..."
