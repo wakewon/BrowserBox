@@ -313,19 +313,19 @@ echo "==========================================="
 echo ""
 echo "Container id:" $CONTAINER_ID
 
-$SUDO docker exec -it $CONTAINER_ID bash
+# $SUDO docker exec -it $CONTAINER_ID bash
 
-echo ""
-echo "Your Login Link"
-echo "==========================================="
-echo $new_link
-echo "==========================================="
-echo ""
-echo "Container id:" $CONTAINER_ID
-echo "You are now Logged Out of your container."
-echo "[Remember: you can get back in anytime from your command prompt by typing: docker exec -it $CONTAINER_ID bash]"
-echo "You can stop your container with docker stop $CONTAINER_ID"
-echo "Or by answering 'no' to the question below."
+# echo ""
+# echo "Your Login Link"
+# echo "==========================================="
+# echo $new_link
+# echo "==========================================="
+# echo ""
+# echo "Container id:" $CONTAINER_ID
+# echo "You are now Logged Out of your container."
+# echo "[Remember: you can get back in anytime from your command prompt by typing: docker exec -it $CONTAINER_ID bash]"
+# echo "You can stop your container with docker stop $CONTAINER_ID"
+# echo "Or by answering 'no' to the question below."
 
 # read -p "Do you want to keep the container running? [no/n to stop, any other key to leave running]: " user_response
 
@@ -341,6 +341,5 @@ echo "Or by answering 'no' to the question below."
 echo "Connect to BrowserBox from a browser now by going to: $new_link"
 
 echo "Exiting BrowserBox Docker run script..."
-exit
 exit 0
 
