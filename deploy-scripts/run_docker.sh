@@ -341,5 +341,6 @@ echo "Or by answering 'no' to the question below."
 echo "Connect to BrowserBox from a browser now by going to: $new_link"
 
 echo "Exiting BrowserBox Docker run script..."
+exit
 exit 0
 
