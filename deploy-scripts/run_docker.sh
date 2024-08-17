@@ -295,8 +295,8 @@ fi
 # Run the container with the appropriate port mappings and capture the container ID
 CONTAINER_ID=$($SUDO docker run --cap-add=sys_nice -v $HOME/sslcerts:/home/bbpro/sslcerts -d --restart=always --name browserbox -p $PORT:$PORT -p $(($PORT-2)):$(($PORT-2)) -p $(($PORT-1)):$(($PORT-1)) -p $(($PORT+1)):$(($PORT+1)) -p $(($PORT+2)):$(($PORT+2)) --cap-add=SYS_ADMIN "${DOCKER_IMAGE_WITH_TAG}" bash -c 'source ~/.nvm/nvm.sh; pm2 delete all; sudo chown bbpro:bbpro ~/sslcerts/*; echo $(setup_bbpro --port '"$PORT"' --token '"$5"') > login_link.txt; ( bbpro || true ) && tail -f /dev/null')
 
-echo "We will now Log You In to your container..."
-echo "[Remember: you can get out of your container anytime by typing 'exit'.]"
+# echo "We will now Log You In to your container..."
+# echo "[Remember: you can get out of your container anytime by typing 'exit'.]"
 echo "Waiting a few seconds for container to start..."
 sleep 7
 
