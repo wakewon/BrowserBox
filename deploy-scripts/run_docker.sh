@@ -327,16 +327,18 @@ echo "[Remember: you can get back in anytime from your command prompt by typing:
 echo "You can stop your container with docker stop $CONTAINER_ID"
 echo "Or by answering 'no' to the question below."
 
-read -p "Do you want to keep the container running? [no/n to stop, any other key to leave running]: " user_response
+# read -p "Do you want to keep the container running? [no/n to stop, any other key to leave running]: " user_response
 
-if [[ "$user_response" == "no" || "$user_response" == "n" ]]; then
-  echo "Stopping container (waiting up to 3 seconds)..."
-  $SUDO docker stop --time 3 "$CONTAINER_ID"
-  echo "Container stopped."
-else
-  echo "Container not stopped."
-  echo "Connect to BrowserBox from a browser now by going to: $new_link"
-fi
+# if [[ "$user_response" == "no" || "$user_response" == "n" ]]; then
+#   echo "Stopping container (waiting up to 3 seconds)..."
+#   $SUDO docker stop --time 3 "$CONTAINER_ID"
+#   echo "Container stopped."
+# else
+#   echo "Container not stopped."
+#   echo "Connect to BrowserBox from a browser now by going to: $new_link"
+# fi
+
+echo "Connect to BrowserBox from a browser now by going to: $new_link"
 
 echo "Exiting BrowserBox Docker run script..."
 exit 0
