@@ -51,7 +51,8 @@ echo "Privacy: https://dosyago.com/privacy.txt"
 echo "Your use is an agreement to the terms, privacy policy and license."
 
 # Define directory and file paths
-certDir="${HOME}/sslcerts"
+# certDir="${HOME}/sslcerts"
+certDir="$4"
 certFile="${certDir}/fullchain.pem"
 keyFile="${certDir}/privkey.pem"
 
