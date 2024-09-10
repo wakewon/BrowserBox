@@ -19,7 +19,7 @@ class BBTopBar extends Base {
     const {state} = this;
     const timerSpan = this.shadowRoot.querySelector('#cloudtabs-session-clock');
     
-    await state.untilTrueOrTimeout(() => !!state?.browserExpiresAt?.browserExpiresAt, 20);
+    await state.untilTrueOrTimeout(() => !!state?.browserExpiresAt?.browserExpiresAt, 20).catch(() => console.info('Waiting for browser expiry information timed out'));
 
     const expiresAt = state.browserExpiresAt.browserExpiresAt;
 
@@ -43,9 +43,11 @@ class BBTopBar extends Base {
       if (display) {
         timerSpan.textContent = display;
       } else {
-        timerSpan.style.display = 'none';
+        if ( timerSpan?.style ) {
+          timerSpan.style.display = 'none';
+        }
         clearInterval(timerUpdater);
-      }
+      } 
     }, 1001);
   }
 
@@ -55,7 +57,7 @@ class BBTopBar extends Base {
     if ( state.serverConnected ) {
       globalThis.location.href='https://browse.cloudtabs.net/#myPlan';
     } else {
-      alert(`Sorry! Your session has already expired. You cannot extend it now. But you can purchase 1 hour for $1.`);
+      alert(`Your session has expired but you can subscribe now to get unrestricted sessions and browse whenever you want.`);
       setTimeout(() => globalThis.location.href='https://browse.cloudtabs.net/#myPlan', 150);
     }
   }

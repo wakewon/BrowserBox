@@ -1,7 +1,7 @@
+export const VERSION = '10.0.4';
 export const SERVICE_COUNT = 4; // pptr(menu), chat, audio, devtools
 export const FRAME_CONTROL = false;
 
-export const VERSION = '9.9.4';
 export const SafariPlatform = /^((?!chrome|android).)*safari/i;
 const MobilePlatform = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
 const FirefoxPlatform = /firefox/i;
@@ -193,6 +193,7 @@ export const DEBUG = Object.freeze({
 });
 
 export const CONFIG = Object.freeze({
+  alwaysSendTopLevel: false,
   get isCT() {
     return globalThis?.location?.hostname?.endsWith?.('.cloudtabs.net');
   },

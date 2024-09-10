@@ -1,4 +1,3 @@
-//import {exec} from 'child_process';
 import path from 'path';
 import {EventEmitter} from 'node:events';
 import os from 'os';
@@ -143,9 +142,9 @@ const launcher_api = {
           `--force-dark-mode`,
         ] : []
       ),
-      /* do not flush cache storage when on a development laptop (as it may flush my regular Chrome profile too!) 
+      /* do not flush cache storage when on a development laptop (as it may flush my regular Chrome profile too!)
         I added this after running local development on my MacBook and seeing my YouTube downloads disappear
-        I don't know if they are connected, but they could be, so removing these to be sure :) ;p xxx;p 
+        I don't know if they are connected, but they could be, so removing these to be sure :) ;p xxx;p
       */
       /*
       ...(
@@ -159,20 +158,20 @@ const launcher_api = {
 
       /**
         webgl and 3d api related (
-          e.g. github.com landing page animation, 
-          image editing, 3d games, etc, etc 
+          e.g. github.com landing page animation,
+          image editing, 3d games, etc, etc
         )
       **/
-      ...(DEBUG.disableGL ? [
+      ...(DEBUG.disableGL && process.platform != "darwin" ? [
         '--disable-webgl2',
         '--disable-webgl',
       ] : []),
 
-      ...(DEBUG.disable3D ? [
+      ...(DEBUG.disable3D && process.platform != "darwin" ? [
         '--disable-3d-apis',
       ] : []),
 
-      ...(DEBUG.disabled3D && DEBUG.useGL ? [
+      ...(DEBUG.disabled3D && DEBUG.useGL && process.platform != "darwin" ? [
         '--use-gl=swiftshader',
         '--use-angle=default',
       ] : []),
@@ -183,13 +182,13 @@ const launcher_api = {
     DEBUG.val && console.log(`Chrome Number: ${chromeNumber}, Executing chrome-launcher`);
     const CHROME_FLAGS = Array.from(DEFAULT_FLAGS);
     if (!process.env.DEBUG_SKATEBOARD) {
-      if ( DEBUG.useNewAsgardHeadless ) {
-        CHROME_FLAGS.push('--headless=new'); 
+      if ( DEBUG.useNewAsgardHeadless && ! isDocker() ) {
+        CHROME_FLAGS.push('--headless=new');
       } else {
-        CHROME_FLAGS.push('--headless'); 
+        CHROME_FLAGS.push('--headless');
       }
     } else {
-      CHROME_FLAGS.push('--no-sandbox'); 
+      CHROME_FLAGS.push('--no-sandbox');
     }
     if ( DEBUG.restoreSessions ) {
       CHROME_FLAGS.push(`--restore-last-session`);
@@ -201,6 +200,7 @@ const launcher_api = {
     }
     if ( DEBUG.lowEndDefault ) {
       CHROME_FLAGS.push("--enable-low-end-device-mode");
+      CHROME_FLAGS.push("--disable-dev-shm-usage");
     }
     if ( DEBUG.disable3PC ) {
       CHROME_FLAGS.push(`--test-third-party-cookie-phaseout`);
@@ -220,12 +220,42 @@ const launcher_api = {
       CHROME_FLAGS.push(`--proxy-server="${process.env.TOR_PROXY.replace('socks5h', 'socks5')}"`);
       CHROME_FLAGS.push(`--host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE localhost"`);
     }
-    if (isDocker()) {
+    if ( isDocker() ) {
+      CHROME_FLAGS.push(...[
+        `--disable-features=UseSkiaRenderer,UseOzonePlatform,WebRTC-HWEncoding`
+      ]);
+    }
+    if (isDocker() ) {
       CHROME_FLAGS.push(...[
         "--disable-gpu",
         "--enable-low-end-device-mode",
         "--ignore-gpu-blacklist",
-        "--single-process",
+        //"--single-process",
+        "--disable-extensions",
+        "--disable-hang-monitor",
+        "--noerrdialogs",
+        "--no-sandbox",
+        "--disable-dev-shm-usage"
+      ]);
+      // the commented out flags below ruined video on Docker (at least on macOS)
+      CHROME_FLAGS.push('--no-first-run');
+      CHROME_FLAGS.push('--start-maximized');
+      CHROME_FLAGS.push('--bwsi');
+      CHROME_FLAGS.push('--disable-file-system');
+      //CHROME_FLAGS.push('--enable-features=Vulkan,UseSkiaRenderer,VaapiVideoEncoder,VaapiVideoDecoder,CanvasOopRasterization');
+      CHROME_FLAGS.push('--ignore-gpu-blocklist');
+      CHROME_FLAGS.push('--disable-seccomp-filter-sandbox');
+      //CHROME_FLAGS.push('--use-gl=egl');
+      //CHROME_FLAGS.push('--disable-software-rasterizer');
+      CHROME_FLAGS.push('--disable-dev-shm-usage');
+      CHROME_FLAGS.push('--window-position=0,0');
+    }
+    if (process.platform == "darwin") {
+      CHROME_FLAGS.push(...[
+        //"--disable-gpu",
+        //"--enable-low-end-device-mode",
+        "--ignore-gpu-blacklist",
+        //"--single-process",
         "--disable-extensions",
         "--disable-hang-monitor",
         "--noerrdialogs",
@@ -248,7 +278,7 @@ const launcher_api = {
     if ( DEBUG.noAudio ) {
       CHROME_FLAGS.push('--mute-audio');
     }
-    const targetCount = fs.existsSync(path.resolve(CONFIG.baseDir, 'targetCount')) ? 
+    const targetCount = fs.existsSync(path.resolve(CONFIG.baseDir, 'targetCount')) ?
         parseInt(fs.readFileSync(path.resolve(CONFIG.baseDir, 'targetCount')).toString())
       :
         0
@@ -257,12 +287,12 @@ const launcher_api = {
 
     const CHROME_OPTS = {
       port,
-      startingUrl: isNotFirstRun ? 
-          targetCount == 0 ? 
+      startingUrl: isNotFirstRun ?
+          targetCount == 0 ?
               (CONFIG.homePage || 'https://bing.com')
             :
-              'chrome://about' 
-        : 
+              'chrome://about'
+        :
           (CONFIG.homePage || 'https://duckduckgo.com'),
       ignoreDefaultFlags: true,
       handleSIGINT: false,
@@ -340,7 +370,7 @@ const launcher_api = {
         let handlers = deathHandlers.get(port);
         if ( handlers ) {
           for( const handler of handlers ) {
-            try { 
+            try {
               handler();
             } catch(e) {
               console.warn("Error in chrome death handler", e, handler);
@@ -363,7 +393,7 @@ const launcher_api = {
     async function undoChrome() {
       DEBUG.val && console.log("Undo chrome called");
       if ( ! chrome_started ) return;
-      chrome_started = false; 
+      chrome_started = false;
       try {
         console.warn("Chrome exiting");
         console.info(`Deleting said pid file...`);
@@ -372,7 +402,7 @@ const launcher_api = {
         const newHandlers = [];
         if ( handlers ) {
           for( const handler of handlers ) {
-            try { 
+            try {
               handler();
             } catch(e) {
               newHandlers.push(handler);
@@ -381,12 +411,12 @@ const launcher_api = {
           }
           deathHandlers.set(port, newHandlers);
         }
-        await zomb.kill(); 
+        await zomb.kill();
         process.exit(0);
       } catch(e) {
         console.warn("Error on kill chrome on exit", e);
         process.exit(0);
-      } 
+      }
     }
   },
 
@@ -409,3 +439,4 @@ const launcher_api = {
 };
 
 export default launcher_api;
+

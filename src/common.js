@@ -33,15 +33,17 @@ export let hostWL;
 if ( isCT ) {
   try {
     wlFileExists = fs.existsSync(path.resolve(WL_FILE_PATH));
-    hostWL = new Set(
-      fs.readFileSync(path.resolve(WL_FILE_PATH)).toString()
-        .split(/\s*\n\s*/g)
-        .map(line => line.trim())
-        .filter(line => line.length)
-    );
+    if ( wlFileExists ) {
+      hostWL = new Set(
+        fs.readFileSync(path.resolve(WL_FILE_PATH)).toString()
+          .split(/\s*\n\s*/g)
+          .map(line => line.trim())
+          .filter(line => line.length)
+      );
+    }
     //console.log(`WL set up`, hostWL);
   } catch(e) {
-    console.warn(e);
+    //console.warn(e);
     wlFileExists = false;
   }
 }
@@ -63,6 +65,10 @@ export const LOG_FILE = {
 };
 
 export const DEBUG = Object.freeze({
+  debugReconnect: true,
+  fileDebug: false,
+  debugScreenSize: false,
+  showFileErrors: false,
   debugCast: false,
   lowEndDefault: false,
   debugSession: false,
@@ -121,6 +127,9 @@ export const DEBUG = Object.freeze({
   debugBinding: false,
   events: false,
   commands: false,
+  blockList: new Set([
+    //"Emulation.setDeviceMetricsOverride",
+  ]),
   adBlock: true,
   debugAddr: true,
   debugScaledUpCoViewport: false,
@@ -135,7 +144,7 @@ export const DEBUG = Object.freeze({
   debugFileDownload: false,
   debugFileUpload: false,
   get useNewAsgardHeadless() { 
-    return this.restoreSessions || false;
+    return this.restoreSessions || true;
   },
   showFlags: true,
   allowExternalChrome: true,
@@ -176,7 +185,7 @@ export const DEBUG = Object.freeze({
   neverWait: true, /* for commands */
   attachImmediately: true,
   manuallyInjectIntoEveryCreatedContext: false,
-  ignoreCertificateErrors: true,
+  ignoreCertificateErrors: false,
   debugNavigator: false,
   showContextIdCalls: false,
   debugCopyPaste: false,
@@ -247,26 +256,16 @@ export const DEBUG = Object.freeze({
 DEBUG.showDebug && console.log(DEBUG);
 
 export const ALLOWED_3RD_PARTY_EMBEDDERS = [
-  "https://dustinbrett.com",
-  "https://users.dosyago.com",
   "https://cloudtabs.net",
   "https://*.puter.com",
   "https://puter.com",
   "https://*.puter.site",
   "https://*.cloudtabs.net",
-  "https://browserbox.pro",
-  "https://*.browserbox.pro",
   "https://localhost:*",
   ...(
   process.env.DOMAIN ? [
     `https://${process.env.DOMAIN}:*`,
     `https://*.${process.env.DOMAIN}:*`,
-  ] : []),
-  ...((
-    process?.env?.DOMAIN?.endsWith?.('.cloudtabs.net') &&  
-    !os?.userInfo?.()?.username?.startsWith?.("bbuser-ss")
-    ) ? [
-      "*"
   ] : []),
 ];
 export const FLASH_FORMATS = new Set([
@@ -313,7 +312,7 @@ export const CONFIG = Object.freeze({
   sslcerts: port => {
     if ( process.env.TORBB ) {
       DEBUG.debugAddr && console.log('Cert file for', process.env[`ADDR_${port}`]);
-      return path.join(process.env.SSLCERTS_DIR, process.env[`ADDR_${port}`]);
+      return path.join(os.homedir(), process.env.SSLCERTS_DIR, process.env[`ADDR_${port}`]);
     } else {
       return process.env.SSLCERTS_DIR ? process.env.SSLCERTS_DIR : 'sslcerts';
     }

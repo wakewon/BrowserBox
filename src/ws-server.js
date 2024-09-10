@@ -16,7 +16,6 @@
   import cors from 'cors';
   import helmet from 'helmet';
   import rateLimit from 'express-rate-limit';
-  import csrf from 'csurf';
 
   import zl from './zombie-lord/index.js';
   import {start_mode} from './args.js';
@@ -130,7 +129,6 @@
   // keep tabs organized
   const TabNumbers = new Map();
 
-  export let LatestCSRFToken = '';
   let shutdownTimer = null;
   let serverOrigin;
   let messageQueueRunning = false;
@@ -338,14 +336,12 @@
     app.use(bodyParser.json());
     app.use(cookieParser());
     app.use(upload.array("files", 10));
-    app.use(csrf({cookie: {sameSite: 'None', secure:true}}));
     app.use((req, res, next) => {
       const newOrigin = `${req.protocol}://${req.headers.host}`;
       if ( newOrigin !== serverOrigin ) {
         serverOrigin = newOrigin;
         DEBUG.showOrigin && console.log({serverOrigin});
       }
-      LatestCSRFToken = req.csrfToken();
       next();
     });
     // serve assets that can be injected into pages
@@ -562,8 +558,40 @@
         stopShutdownTimer();
         DEBUG.debugConnect && console.log(`Check 3`);
         let peer;
-        zl.life.onDeath(zombie_port, () => {
+        zl.life.onDeath(zombie_port,  () => {
           console.info("Zombie/chrome closed or crashed.");
+          zl.act.deleteConnection(zombie_port);
+          if ( fs.existsSync(path.join(os.homedir(), 'restart_chrome')) ) {
+            fs.unlinkSync(path.join(os.homedir(), 'restart_chrome'));
+            console.log(`Restarting chrome on request`);
+            const MAX_RETRIES = 10;
+            let count = 0;
+
+            restart();
+
+            async function restart() {
+              let port;
+              try {
+                ({port} = await zl.life.newZombie({port: zombie_port})); 
+              } catch(e) {
+                console.warn(`Error starting chrome`);
+                zl.life.kill(zombie_port);
+              }
+              if ( port != zombie_port ) {
+                console.log(`Zombie port mismatch`, {zombie_port, acquired_port: port});
+                if ( port ) { 
+                  zl.life.kill(port);
+                }
+                await sleep(500);
+                if ( count++ < MAX_RETRIES ) {
+                  console.log(`Retrying...`);
+                  setTimeout(() => restart(), 0);
+                } else {
+                  console.warn(new Error(`Failed to restart chrome. Retry count exceeded`));
+                }
+              }
+            }
+          }
           //console.log("Closing as zombie crashed.");
           //ws.close();
         });
@@ -1026,7 +1054,8 @@
             try {
               data.expiry_time = fs.readFileSync(CONFIG.expiryTimeFilePath).toString().trim();
             } catch(e) {
-              console.info(`Cannot read expiry time`, e);
+              console.info(`Cannot read expiry time`);
+              DEBUG.showFileErrors && console.warn(e);
               data.expiry_time = 0;
             }
           }
@@ -1039,7 +1068,6 @@
           }
           res.status(200).send(` 
             <form method=POST target=results>
-              <input type=hidden name=_csrf value=${LatestCSRFToken}>
               <fieldset>
                 <button formaction=/restart_app>Restart app</button>
                 <button formaction=/stop_app>Stop app</button>
@@ -1051,10 +1079,13 @@
         });
         app.post("/file", async (req,res) => {
           const cookie = req.cookies[COOKIENAME+port] || req.query[COOKIENAME+port] || req.headers['x-browserbox-local-auth'];
-          if ( (cookie !== allowed_user_cookie) ) { 
+          const {token} = req.body;
+          DEBUG.fileDebug && console.log(req.files, req.body, {token});
+          if ( (cookie !== allowed_user_cookie) && token != session_token ) { 
             DEBUG.debugFileUpload && console.log(`Request for file upload forbidden.`, req.files);
             return res.status(401).send('{"err":"forbidden"}');
           }
+          DEBUG.fileDebug && console.log(req.files, req.body, {token});
           const {files} = req;
           const sessionId = req.body.sessionid || req.body.sessionId;
           const contextId = OurWorld.get(sessionId);
@@ -1071,10 +1102,10 @@
             sessionId
           }, zombie_port);
           DEBUG.debugFileUpload && console.log({fileInputResult, s:JSON.stringify(fileInputResult)});
-          const objectId = fileInputResult.data.result.objectId;
+          const objectId = fileInputResult?.data?.result?.objectId;
           let result;
             
-          if ( objectId || backednNodeId ) {
+          if ( objectId || backendNodeId ) {
             const command = {
               name: "DOM.setFileInputFiles",
               params: {
@@ -1106,6 +1137,8 @@
             DEBUG.val > DEBUG.med && console.log("Sent files to file input", result, files);
             res.json(result);
           }
+          forceMeta({fileChooserClosed:{sessionId}});
+          DEBUG.fileDebug && console.log('force meta called');
         }); 
       // app meta controls
         app.post("/restart_app", ConstrainedRateLimiter, (req, res) => {

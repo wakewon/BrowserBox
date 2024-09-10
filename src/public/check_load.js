@@ -1,9 +1,23 @@
+import './voodoo/src/common.js';
+
 {
-  const LOAD_WAIT = 10000; // 10 seconds for load
-  const checkUntil = Date.now() + LOAD_WAIT;
+  const TOR_WAIT = 45000;
+  const LOAD_WAIT = 10000;
+  const isTorAPI = new URL(location.origin);
+  let isTor = false || isTorAPI.hostname.endsWith('.onion');
+  if ( ! isTor ) {
+    isTorAPI.pathname = '/isTor';
+    await uberFetch(isTorAPI).then(r => r.json()).then(resp => {
+      isTor = resp.isTor;
+      console.log({resp});
+    });
+  }
+  const checkUntil = Date.now() + (isTor ? TOR_WAIT : LOAD_WAIT);
+  let loaderInstalled = false;
   let timer = setInterval(() => {
-    if ( globalThis?.voodoo?.api?.untilLoaded?.() ) {
-      clearInterval(timer);
+    if ( !loaderInstalled && globalThis?.voodoo?.api?.untilLoaded) {
+      globalThis?.voodoo?.api?.untilLoaded?.().then(() => clearInterval(timer));
+      loaderInstalled = true;
     }
     if ( Date.now() > checkUntil ) {
       clearInterval(timer);

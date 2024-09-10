@@ -1311,17 +1311,21 @@
 
         // File chooser 
           queue.addMetaListener('fileChooser', ({fileChooser}) => {
-            const {sessionId, mode, accept, csrfToken} = fileChooser;
+            const {sessionId, mode, accept} = fileChooser;
+            let {token} = fileChooser;
+            if ( ! token ) {
+              token = globalThis._sessionToken();
+            }
             DEBUG.val && console.log('client receive file chooser notification', fileChooser);
             if ( globalThis.hasPuterAbility ) {
               globalThis.parent.parent.postMessage({request:{puterCustomUpload:{fileOptions:{
                 accept,
                 multiple:mode=='selectMultiple'
               }}}}, '*');
-              plugins.setFileContext({csrfToken, sessionId});
+              plugins.setFileContext({token, sessionId});
             } else {
               const modal = {
-                sessionId, mode, accept, csrfToken,
+                sessionId, mode, accept, token,
                 type: 'filechooser',
                 message: `Securely send files to the remote page.`,
                 title: `File Upload`,
@@ -1329,6 +1333,15 @@
               DEBUG.val && console.log({fileChooserModal:modal});
               state.viewState.modalComponent.openModal({modal});
             }
+          });
+
+          queue.addMetaListener('fileChooserClosed', ({fileChooserClosed}) => {
+            console.log('File chooser closed', fileChooserClosed);
+            state.viewState.modalComponent.onlyCloseModal(state.viewState.modalComponent.state);
+            // update tabs (to trigger vm paused warning if it's still paused
+            // 1 second after a modal closes only if there is no other modal open then
+            clearTimeout(modaler);
+            modaler = setTimeout(() => !state.viewState.currentModal && updateTabs(), 1000);
           });
       
       // bond tasks 
@@ -1647,9 +1660,9 @@
             //console.info(`[sendKey]: got event: ${keyEvent.key} (${keyEvent.type.slice(3)})`, keyEvent);
           }
           const {viewState} = state;
-          if ( ! ( viewState.shouldHaveFocus || document.deepActiveElement == viewState.omniBoxInput ) ) {
+          if ( CONFIG.alwaysSendTopLevel || ! ( viewState.shouldHaveFocus || document.deepActiveElement == viewState.omniBoxInput ) ) {
             let ev = keyEvent;
-            if ( ev.key == "Tab" || ev.key == "Enter" ) {
+            if ( ev.key == "Tab" ) {
               // do nothing
             } else{
               DEBUG.debugKeyEvents && console.info(`[sendKey]: sending event: ${keyEvent.key}`, keyEvent);
@@ -1659,10 +1672,43 @@
         }
 
         function installTopLevelKeyListeners() {
+          if ( state.topLevelInstalled ) return;
+          state.topLevelInstalled = true;
           if ( ! deviceIsMobile() && CONFIG.useTopLevelSendKeyListeners ) {
             self.addEventListener('keydown', sendKey); 
-            self.addEventListener('keypress', sendKey);
+            //self.addEventListener('keypress', state.pressKey);
             self.addEventListener('keyup', sendKey); 
+          }
+          if ( CONFIG.useTopLevelControlKeyListeners ) {
+            console.log('Install tlckl');
+            document.addEventListener('keydown', event => {
+              if ( !event.target.matches('body') || state.viewState.shouldHaveFocus ) return;
+              if ( event.code == "Space" ) {
+                state.H({
+                  type: 'wheel',
+                  target: state.viewState.canvasEl,
+                  pageX: 0,
+                  pageY: 0,
+                  clientX: 0,
+                  clientY: 0,
+                  deltaMode: 2,
+                  deltaX: 0, 
+                  contextId: state.viewState.latestScrollContext,
+                  deltaY: event.shiftKey ? -0.618 : 0.618
+                });
+                //event.preventDefault();
+              } else if ( event.key == "Tab" ) {
+                state.retargetTab(event);
+              } else if ( event.key == "Enter" ) {
+                H(event);
+              }
+            });
+            document.addEventListener('keyup', event => {
+              if ( !event.target.matches('body') || state.viewState.shouldHaveFocus ) return;
+              if ( event.key == "Enter" ) {
+                H(event);
+              }
+            });
           }
         }
 
@@ -1994,7 +2040,7 @@
           if ( mouseWheel ) {
             transformedEvent.contextId = state.viewState.latestScrollContext;
           }
-          
+
           if ( (event.type.startsWith('key')) && (event.code === 229 || event.keyCode === 229) ) {
             showIMEUI();
           } 
@@ -2006,6 +2052,7 @@
             DEBUG.HFUNCTION && console.log(`H Sending`, transformedEvent);
             queue.send(transformedEvent);
             DEBUG.debugKeyEvents && event.type.startsWith('key') && console.info(`[H]: sent key event: ${event.key} (${event.type.slice(3)})`);
+            DEBUG.debugKeyEvents & event.type.startsWith('key') && console.log((new Error).stack);
           } else {
             if ( event.type == "keydown" && event.key == "Enter" ) {
               // Note
@@ -2031,6 +2078,7 @@
                   state.latestCommitData = state.latestData;
                   state.latestData = "";
                 } 
+                //DEBUG.debugKeyEvents && alert('enter');
               }
             } else if ( event.type == "keydown" && event.key == "Backspace" ) {
               state.backspaceFiring = true;
@@ -2066,7 +2114,9 @@
             }
             DEBUG.HFUNCTION && console.log(`H Sending`, transformedEvent);
             queue.send(transformedEvent);
+            //DEBUG.debugKeyEvents && console.log('Sent',{transformedEvent,event});
             DEBUG.debugKeyEvents && event.type.startsWith('key') && console.info(`[H]: sent key event: ${event.key} (${event.type.slice(3)})`);
+            DEBUG.debugKeyEvents & event.type.startsWith('key') && console.log((new Error).stack);
           }
         }
 
@@ -2310,14 +2360,10 @@
             if ( delta > 1000 ) {
               lastTime = now;
               setTimeout(() => {
-                let el;
-                if ( click ) {
-                  el = click.target;
-                } else if ( ! notify ) {
-                  el = Array.from(Root.querySelectorAll('nav.targets li.tab-selector a'))
-                    .find(el => el.href.endsWith(tab.targetId));
-                }
-                el?.scrollIntoView({behavior:'smooth',inline:'center'});
+                let el = document.querySelector('bb-view')
+                  .shadowRoot.querySelector('bb-tabs')
+                    .shadowRoot.querySelector('bb-select-tab.active');
+                el?.scrollIntoView?.({behavior:'smooth',inline:'center'});
               }, 500);
             }
 
